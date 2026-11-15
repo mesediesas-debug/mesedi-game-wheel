@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10131d">
+<title>MESEDİ GAME • Qalib Çarxı</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#252b40,#10131d 65%);color:#fff;font-family:Arial,sans-serif;min-height:100vh;padding:22px 14px}
+.wrap{max-width:650px;margin:auto;text-align:center}.brand{font-size:13px;letter-spacing:4px;color:#f6c85f;font-weight:800;margin:10px 0 5px}.title{font-size:clamp(27px,7vw,42px);font-weight:900;margin:0 0 8px}.sub{color:#b9bfd0;font-size:14px;margin-bottom:20px}
+.panel{background:#1b2030;border:1px solid #343c52;border-radius:18px;padding:16px;margin:14px 0;box-shadow:0 12px 35px #0005}
+#wheel{width:min(88vw,440px);height:min(88vw,440px);display:block;margin:0 auto}
+.pointer{font-size:35px;line-height:25px;color:#f6c85f;position:relative;z-index:2;text-shadow:0 2px 8px #000}
+button{border:0;border-radius:12px;padding:13px 18px;font-size:16px;font-weight:800;cursor:pointer}
+.spin{background:linear-gradient(135deg,#ffda75,#e6a92d);color:#171717;width:min(100%,300px);font-size:19px;margin-top:14px;box-shadow:0 6px 0 #9c6b13}
+.spin:disabled{opacity:.5;cursor:not-allowed}
+textarea{width:100%;min-height:125px;background:#111624;color:white;border:1px solid #424b63;border-radius:12px;padding:12px;font:15px Arial;resize:vertical}
+.small{color:#aeb6c8;font-size:12px;line-height:1.5;margin-top:8px}.result{font-size:22px;font-weight:900;color:#ffda75;min-height:30px;margin-top:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:10px}.secondary{background:#343c52;color:white}.danger{background:#5b2d3a;color:#fff}
+.count{color:#c6ccda;font-size:13px;margin-top:8px}
+.lock{color:#ffcf72;font-size:13px;margin:12px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">MESEDİ GAME</div>
+  <h1 class="title">QALİB ÇARXI</h1>
+  <div class="sub">İştirakçıları əlavə et • Çarxı fırlat • Qalibi seç</div>
+  <div class="panel">
+    <div class="pointer">▼</div>
+    <canvas id="wheel" width="900" height="900"></canvas>
+    <button class="spin" id="spin">🎡 FIRLAT</button>
+    <div class="result" id="result">Qalib burada görünəcək</div>
+    <div class="count" id="count">0 iştirakçı</div>
+  </div>
+  <div class="panel" id="controls" hidden>
+    <strong>İştirakçıların adları</strong>
+    <p class="small">Hər sətri ayrı yazın. Eyni ad bir neçə dəfə yazılarsa, çarxda ayrıca iştirak sayılacaq.</p>
+    <textarea id="names" placeholder="Məsələn:&#10;Elvin&#10;Murad&#10;Rəşad"></textarea>
+    <div class="row">
+      <button class="secondary" id="load">Siyahını yenilə</button>
+      <button class="danger" id="reset">Sıfırla</button>
+    </div>
+    <p class="small">Qalib seçiləndə həmin iştirakçı növbəti fırlanmadan çıxarılır.</p>
+  </div>
+  <div class="lock" id="lock">İdarəetmə yalnız təsdiqlənmiş Telegram hesabı üçün nəzərdə tutulub.</div>
+  <div class="small">Qeyd: Bu ilkin versiyadır. İdarəçi yoxlaması brauzer tərəfindədir; real təhlükəsizlik üçün serverdə Telegram imzasının yoxlanması ayrıca qurulmalıdır.</div>
+</div>
+<script>
+const ADMIN_ID="1621992708";
+const tg=window.Telegram?.WebApp;
+tg?.ready(); tg?.expand();
+const userId=String(tg?.initDataUnsafe?.user?.id||"");
+const allowed=userId===ADMIN_ID;
+const controls=document.getElementById("controls");
+const lock=document.getElementById("lock");
+const spinBtn=document.getElementById("spin");
+const canvas=document.getElementById("wheel"),ctx=canvas.getContext("2d");
+const namesBox=document.getElementById("names");
+const result=document.getElementById("result"),count=document.getElementById("count");
+let names=[],angle=0,spinning=false;
+if(allowed){controls.hidden=false;lock.textContent="İdarəçi rejimi aktivdir."}
+else {spinBtn.disabled=true;lock.textContent="Çarxı idarə etmək üçün şəxsi Telegram hesabınızla açın."}
+const colors=["#e94b64","#f2b84b","#3c9d91","#6278c7","#a66ac4","#e47b42","#4389aa","#a6a947"];
+function draw(){
+ const n=names.length;ctx.clearRect(0,0,900,900);
+ ctx.save();ctx.translate(450,450);
+ if(!n){ctx.beginPath();ctx.arc(0,0,420,0,Math.PI*2);ctx.fillStyle="#30384c";ctx.fill();ctx.fillStyle="#fff";ctx.font="bold 34px Arial";ctx.textAlign="center";ctx.fillText("ADLARI ƏLAVƏ EDİN",0,10);ctx.restore();return}
+ const step=Math.PI*2/n;
+ for(let i=0;i<n;i++){
+  const a=angle+i*step;
+  ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,420,a,a+step);ctx.closePath();ctx.fillStyle=colors[i%colors.length];ctx.fill();
+  ctx.strokeStyle="#fff9";ctx.lineWidth=3;ctx.stroke();
+  ctx.save();ctx.rotate(a+step/2);ctx.textAlign="right";ctx.fillStyle="#fff";ctx.font=`bold ${Math.max(17,Math.min(29,330/n))}px Arial`;
+  let label=names[i].length>18?names[i].slice(0,17)+"…":names[i];
+  ctx.shadowColor="#0008";ctx.shadowBlur=4;ctx.fillText(label,385,10);ctx.restore();
+ }
+ ctx.beginPath();ctx.arc(0,0,62,0,Math.PI*2);ctx.fillStyle="#f6c85f";ctx.fill();ctx.strokeStyle="#fff";ctx.lineWidth=7;ctx.stroke();
+ ctx.fillStyle="#171717";ctx.font="bold 25px Arial";ctx.textAlign="center";ctx.fillText("MG",0,9);
+ ctx.restore();count.textContent=names.length+" iştirakçı";
+}
+function loadNames(){
+ if(!allowed)return;
+ names=namesBox.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+ result.textContent="Siyahı yeniləndi";draw();
+}
+document.getElementById("load").onclick=loadNames;
+document.getElementById("reset").onclick=()=>{if(!allowed)return;names=[];namesBox.value="";result.textContent="Siyahı sıfırlandı";draw()};
+spinBtn.onclick=()=>{
+ if(!allowed||spinning||!names.length)return;
+ spinning=true;spinBtn.disabled=true;result.textContent="Uğurlar!";
+ const chosen=Math.floor(Math.random()*names.length);
+ const step=Math.PI*2/names.length;
+ // Pointer is at top; rotate selected slice center to top.
+ const current=((angle%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
+ const targetBase=-(chosen*step+step/2)-Math.PI/2;
+ const delta=((targetBase-current)%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
+ const start=angle,finish=angle+Math.PI*2*6+delta,duration=5200,t0=performance.now();
+ function frame(now){
+  const t=Math.min(1,(now-t0)/duration),ease=1-Math.pow(1-t,4);
+  angle=start+(finish-start)*ease;draw();
+  if(t<1)requestAnimationFrame(frame);
+  else{
+   const winner=names.splice(chosen,1)[0];
+   namesBox.value=names.join("\n");result.textContent="🏆 QALİB: "+winner;
+   spinning=false;spinBtn.disabled=false;draw();
+  }
+ }
+ requestAnimationFrame(frame);
+};
+draw();
+</script>
+</body></html>
